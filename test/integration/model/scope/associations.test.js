@@ -57,9 +57,11 @@ describe(Support.getTestDialectTeaser('Model'), function() {
               where: {
                 username: "escape'd"
               }
-            }
+            },
           }
         });
+
+        this.Project = this.sequelize.define('project');
 
         this.Company = this.sequelize.define('company', {
           active: Sequelize.BOOLEAN
@@ -78,15 +80,36 @@ describe(Support.getTestDialectTeaser('Model'), function() {
                 { model: this.ScopeMe.unscoped(), as: 'users'}
               ]
             },
+            projects: {
+              include: [
+                this.Project
+              ]
+            },
             reversed: {
               order: [['id', 'DESC']]
             }
           }
         });
 
-        this.Project = this.sequelize.define('Project');
+        this.Profile = this.sequelize.define('profile', {
+          active: Sequelize.BOOLEAN
+        }, {
+          defaultScope: {
+            where: { active: true }
+          },
+          scopes: {
+            notActive: {
+              where: {
+                active: false
+              }
+            },
+          }
+        });
+
         this.Project.belongsToMany(this.Company, { through: 'CompanyProjects' });
         this.Company.belongsToMany(this.Project, { through: 'CompanyProjects' });
+
+        this.ScopeMe.hasOne(this.Profile, { foreignKey: 'userId' });
 
         this.ScopeMe.belongsTo(this.Company);
         this.UserAssociation = this.Company.hasMany(this.ScopeMe, { as: 'users'});
@@ -100,11 +123,13 @@ describe(Support.getTestDialectTeaser('Model'), function() {
             this.Company.create({active:true}),
             this.Company.create({active:false}),
             this.ScopeMe.create({username: 'bob', email: 'bob@foobar.com', access_level: 1, other_value: 9, parent_id: 5}),
+            this.Project.create()
           ]);
-        }).spread(function (u1, u2, u3, u4, c1, c2, u5) {
+        }).spread(function (u1, u2, u3, u4, c1, c2, u5, proj1, prof1) {
           return Promise.all([
             c1.setUsers([u1, u2, u3, u4]),
-            c2.setUsers([u5])
+            c2.setUsers([u5]),
+            c1.addProject(proj1)
           ]);
         });
       });
@@ -152,19 +177,34 @@ describe(Support.getTestDialectTeaser('Model'), function() {
             });
           });
 
-          it('should be able to override scoped include', function () {
-            return this.Company.scope('users').findAll({
-              include: [
-                { association: this.UserAssociation, where: { username: 'dan'} }
-              ]
+          it('should be able to merge two scoped includes', function () {
+            return this.Company.scope('users', 'projects').findAll({
+              where: { id: 1 }
             }).get(0).then(function (company) {
-              expect(company.users).to.have.length(1);
-              expect(company.users[0].get('username')).to.equal('dan');
+              expect(company.projects).to.have.length(1);
+              expect(company.users).to.have.length(4);
             });
           });
 
-          it('should be able to append to includes', function () {
-            // ? or should it
+          it('should be able to merge scoped include with include in find', function () {
+            return this.Company.scope('users').findAll({
+              where: { id: 1 },
+              include: [this.Project]
+            }).get(0).then(function (company) {
+              expect(company.projects).to.have.length(1);
+              expect(company.users).to.have.length(4);
+            });
+          });
+
+          it('should be able to override scoped include', function () {
+            return this.Company.scope('users').findAll({
+              include: [
+                { association: this.UserAssociation, where: { username: 'tony'} }
+              ]
+            }).get(0).then(function (company) {
+              expect(company.users).to.have.length(1);
+              expect(company.users[0].get('username')).to.equal('tony');
+            });
           });
         });
       });
@@ -189,7 +229,16 @@ describe(Support.getTestDialectTeaser('Model'), function() {
           });
 
           it('hasOne', function () {
-
+            return this.Profile.create({
+              active: false,
+              userId: 1
+            }).bind(this).then(function () {
+              return this.ScopeMe.find(1);
+            }).then(function (user) {
+              return user.getProfile({ scope: false });
+            }).then(function (project) {
+              expect(project).to.be.ok;
+            });
           });
 
           it('belongsTo', function () {
@@ -219,7 +268,16 @@ describe(Support.getTestDialectTeaser('Model'), function() {
           });
 
           it('hasOne', function () {
-
+            return this.Profile.create({
+              active: false,
+              userId: 1
+            }).bind(this).then(function () {
+              return this.ScopeMe.find(1);
+            }).then(function (user) {
+              return user.getProfile();
+            }).then(function (project) {
+              expect(project).not.to.be.ok;
+            });
           });
 
           it('hasMany double', function () {
@@ -255,7 +313,16 @@ describe(Support.getTestDialectTeaser('Model'), function() {
           });
 
           it('hasOne', function () {
-
+            return this.Profile.create({
+              active: true,
+              userId: 1
+            }).bind(this).then(function () {
+              return this.ScopeMe.find(1);
+            }).then(function (user) {
+              return user.getProfile({ scope: 'notActive' });
+            }).then(function (project) {
+              expect(project).not.to.be.ok;
+            });
           });
 
           it('belongsTo', function () {

@@ -160,6 +160,13 @@ describe(Support.getTestDialectTeaser('Model'), function() {
       });
     });
 
+    it('should correctly overwrite the values in where when merging scopes', function () {
+      return this.ScopeMe.scope('noArgs', { method: ['actualValue', 11]}).findAll().then(function (users) {
+        expect(users).to.have.length(1);
+        expect(users[0].username).to.equal('tobi');
+      });
+    });
+
     it('should be able to combine default with another scope', function () {
       return this.ScopeMe.scope(['defaultScope', {method: ['actualValue', 11]}]).findAll().then(function(users) {
         expect(users).to.have.length(1);
