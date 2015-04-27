@@ -129,7 +129,7 @@ describe(Support.getTestDialectTeaser('Model'), function() {
           return Promise.all([
             c1.setUsers([u1, u2, u3, u4]),
             c2.setUsers([u5]),
-            c1.addProject(proj1)
+            proj1.setCompanies([c1, c2])
           ]);
         });
       });
@@ -139,9 +139,9 @@ describe(Support.getTestDialectTeaser('Model'), function() {
           it('should scope columns properly', function () {
             // Will error with ambigous column if id is not scoped properly to `Company`.`id`
             return expect(this.Company.findAll({
-              where: { id: 1},
+              where: { id: 1 },
               include: [this.UserAssociation]
-            })).to.be.resolved;
+            })).not.to.be.rejected;
           });
 
           it('should apply default scope when including an associations', function () {
@@ -282,7 +282,7 @@ describe(Support.getTestDialectTeaser('Model'), function() {
 
           it('hasMany double', function () {
             // Do we need to - it's deprecated?
-          })
+          });
 
           it('belongsTo', function () {
             return this.ScopeMe.unscoped().find({ where: { username: 'bob' }}).then(function (user) {
