@@ -80,6 +80,11 @@ describe(Support.getTestDialectTeaser('Model'), function() {
                 { model: this.ScopeMe.unscoped(), as: 'users'}
               ]
             },
+            defaultUsers: {
+              include: [
+                { model: this.ScopeMe, as: 'users'}
+              ]
+            },
             projects: {
               include: [
                 this.Project
@@ -184,6 +189,15 @@ describe(Support.getTestDialectTeaser('Model'), function() {
               expect(company.projects).to.have.length(1);
               expect(company.users).to.have.length(4);
             });
+          });
+
+          it('should be able to overwrite multiple scopes with the same include', function () {
+            return this.Company.scope('users', 'defaultUsers').findAll({
+              where: { id: 1 }
+            }).get(0).then(function (company) {
+              // Last scope should take effect
+              expect(company.users).to.have.length(2);
+           });
           });
 
           it('should be able to merge scoped include with include in find', function () {
